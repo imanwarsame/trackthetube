@@ -1,31 +1,60 @@
-import { useState } from 'react';
-import reactLogo from './assets/react.svg';
-import viteLogo from '/vite.svg';
-import './App.css';
+import { AmbientLight, PointLight, LightingEffect } from '@deck.gl/core';
+import type { MapViewState } from '@deck.gl/core';
+import type { MapTheme } from './types/MapTheme';
+import TubeMap from './components/TubeMap';
 
-function App() {
-	const [count, setCount] = useState(0);
+// Source data CSV
+const DATA_URL = {
+	BUILDINGS: 'https://raw.githubusercontent.com/visgl/deck.gl-data/master/examples/trips/buildings.json',
+	TRIPS: 'https://raw.githubusercontent.com/visgl/deck.gl-data/master/examples/trips/trips-v7.json',
+};
 
+const ambientLight = new AmbientLight({
+	color: [255, 255, 255],
+	intensity: 1.0,
+});
+
+const pointLight = new PointLight({
+	color: [255, 255, 255],
+	intensity: 2.0,
+	position: [-74.05, 40.7, 8000],
+});
+
+const lightingEffect = new LightingEffect({ ambientLight, pointLight });
+
+const DEFAULT_THEME: MapTheme = {
+	buildingColor: [74, 80, 87],
+	trailColor0: [253, 128, 93],
+	trailColor1: [23, 184, 190],
+	material: {
+		ambient: 0.1,
+		diffuse: 0.6,
+		shininess: 32,
+		specularColor: [60, 64, 70],
+	},
+	effects: [lightingEffect],
+};
+
+const INITIAL_VIEW_STATE: MapViewState = {
+	longitude: -74,
+	latitude: 40.72,
+	zoom: 13,
+	pitch: 45,
+	bearing: 0,
+};
+
+export default function App() {
 	return (
-		<>
-			<div>
-				<a href='https://vite.dev' target='_blank'>
-					<img src={viteLogo} className='logo' alt='Vite logo' />
-				</a>
-				<a href='https://react.dev' target='_blank'>
-					<img src={reactLogo} className='logo react' alt='React logo' />
-				</a>
-			</div>
-			<h1>Vite + React</h1>
-			<div className='card'>
-				<button onClick={() => setCount((count) => count + 1)}>count is {count}</button>
-				<p>
-					Edit <code>src/App.tsx</code> and save to test HMR
-				</p>
-			</div>
-			<p className='read-the-docs'>Click on the Vite and React logos to learn more</p>
-		</>
+		<div
+			style={{ width: '100vw', height: '100vh', margin: 0, padding: 0, overflow: 'hidden', border: '2px solid orange' }}
+		>
+			<TubeMap
+				theme={DEFAULT_THEME}
+				buildings={DATA_URL.BUILDINGS}
+				trips={DATA_URL.TRIPS}
+				trailLength={180}
+				initialViewState={INITIAL_VIEW_STATE}
+			/>
+		</div>
 	);
 }
-
-export default App;
