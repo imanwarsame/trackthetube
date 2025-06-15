@@ -5,7 +5,6 @@ import TubeMap from './components/TubeMap';
 
 // Source data CSV
 const DATA_URL = {
-	BUILDINGS: 'https://raw.githubusercontent.com/visgl/deck.gl-data/master/examples/trips/buildings.json',
 	TRIPS: 'https://raw.githubusercontent.com/visgl/deck.gl-data/master/examples/trips/trips-v7.json',
 };
 
@@ -36,8 +35,8 @@ const DEFAULT_THEME: MapTheme = {
 };
 
 const INITIAL_VIEW_STATE: MapViewState = {
-	longitude: -74,
-	latitude: 40.72,
+	longitude: -0.1278,
+	latitude: 51.5074,
 	zoom: 13,
 	pitch: 45,
 	bearing: 0,
@@ -48,13 +47,7 @@ export default function App() {
 		<div
 			style={{ width: '100vw', height: '100vh', margin: 0, padding: 0, overflow: 'hidden', border: '2px solid orange' }}
 		>
-			<TubeMap
-				theme={DEFAULT_THEME}
-				buildings={DATA_URL.BUILDINGS}
-				trips={DATA_URL.TRIPS}
-				trailLength={180}
-				initialViewState={INITIAL_VIEW_STATE}
-			/>
+			<TubeMap theme={DEFAULT_THEME} trips={DATA_URL.TRIPS} trailLength={180} initialViewState={INITIAL_VIEW_STATE} />
 		</div>
 	);
 }
