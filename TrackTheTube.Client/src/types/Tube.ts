@@ -23,3 +23,16 @@ export interface TubeLineData {
     name: string;
     features: TubeLineFeature[];
 }
+
+export type TubeStationData = GeoJSON.FeatureCollection<
+	GeoJSON.Point,
+	{
+		id: string;
+		name: string;
+		nlc_id: string;
+		lines: Array<{ name: string; nightopened?: number; opened?: number }>;
+		cartography: { labelX?: number; labelY?: number };
+		alt_id: number;
+		zone: string;
+	}
+>;
