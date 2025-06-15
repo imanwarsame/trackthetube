@@ -210,53 +210,48 @@ export default function TubeMap({
 				height: '100vh',
 				overflow: 'hidden',
 			}}
-			// Add tooltip for tube lines and stations
 			getTooltip={({ object }) => {
-				if (object && object.properties) {
-					// Tooltip for Tube Lines (now specifically targets 'tube-lines-main' layer)
-					// The 'object.layer.id' check is important to distinguish between the two line layers
-					if (
-						object.layer &&
-						object.layer.id === 'tube-lines-main' &&
-						object.properties.lines &&
-						object.geometry.type !== 'Point'
-					) {
-						const line = object.properties.lines[0];
+				if (!object || !object.properties) {
+					return null;
+				}
+
+				// Check if the object belongs to the 'tube-stations' layer and has station properties
+				if (object.properties.name && object.properties.lines && Array.isArray(object.properties.lines)) {
+					const stationName = object.properties.name;
+					const stationLines = object.properties.lines;
+
+					const linesHtml = stationLines
+						.map(
+							(line: { name: string }) =>
+								`<span style="color: ${getRgbColourStringForText(line.name)};">${line.name}</span>`
+						)
+						.join('<br/>');
+
+					return {
+						html: `
+						<div style="background: rgba(0,0,0,0.8); padding: 8px; border-radius: 4px; color: white;">
+							<strong>${stationName}</strong><br/>
+							${linesHtml}
+						</div>
+					`,
+						style: {
+							fontSize: '12px',
+							fontFamily: 'Arial, sans-serif',
+						},
+					};
+				}
+
+				// Check if the object belongs to the 'tube-lines-main' layer and has line properties
+				if (object.properties.lines && Array.isArray(object.properties.lines)) {
+					const line = object.properties.lines[0]; // Assuming the first line object is sufficient
+					if (line && line.name) {
 						return {
 							html: `
-              <div style="background: rgba(0,0,0,0.8); padding: 8px; border-radius: 4px; color: white;">
-                <strong>${line.name}</strong><br/>
-                Opened: ${line.opened || 'N/A'}<br/>
-                Line ID: ${object.properties.id}
-              </div>
-            `,
-							style: {
-								fontSize: '12px',
-								fontFamily: 'Arial, sans-serif',
-							},
-						};
-					}
-					// Tooltip for Tube Stations
-					if (object.properties.name && object.geometry.type === 'Point') {
-						const stationName = object.properties.name;
-						const stationLines = object.properties.lines;
-
-						// Generate HTML for lines with their respective colors
-						const linesHtml = stationLines
-							.map(
-								(line: { name: string }) => `
-                            <span style="color: ${getRgbColourStringForText(line.name)};">${line.name}</span>
-                        `
-							)
-							.join('<br/>');
-
-						return {
-							html: `
-              <div style="background: rgba(0,0,0,0.8); padding: 8px; border-radius: 4px; color: white;">
-                <strong>${stationName}</strong><br/>
-                ${linesHtml}
-              </div>
-            `,
+                    <div style="background: rgba(0,0,0,0.8); padding: 8px; border-radius: 4px; color: white;">
+                        <strong>${line.name}</strong><br/>
+                        Line ID: ${object.properties.id}
+                    </div>
+                `,
 							style: {
 								fontSize: '12px',
 								fontFamily: 'Arial, sans-serif',
@@ -264,6 +259,7 @@ export default function TubeMap({
 						};
 					}
 				}
+
 				return null;
 			}}
 		>
