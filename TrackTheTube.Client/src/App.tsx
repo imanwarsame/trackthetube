@@ -2,11 +2,17 @@ import { AmbientLight, PointLight, LightingEffect } from '@deck.gl/core';
 import type { MapViewState } from '@deck.gl/core';
 import type { MapTheme } from './types/MapTheme';
 import TubeMap from './components/TubeMap';
+import { useState, useEffect } from 'react';
+import type { Trip } from './types/Trip';
+import type { TFLArrival } from './types/TFLArrival';
+import { createTripsFromLiveData } from './utilities/createTripsFromLiveData';
+import type { TubeStationData } from './types/Tube';
+import { buildStationLookup } from './utilities/buildStationLookup';
 
-// Source data CSV
-const DATA_URL = {
-	TRIPS: 'https://raw.githubusercontent.com/visgl/deck.gl-data/master/examples/trips/trips-v7.json',
-};
+// // Source data CSV
+// const DATA_URL = {
+// 	TRIPS: 'https://raw.githubusercontent.com/visgl/deck.gl-data/master/examples/trips/trips-v7.json',
+// };
 
 const ambientLight = new AmbientLight({
 	color: [255, 255, 255],
@@ -43,11 +49,36 @@ const INITIAL_VIEW_STATE: MapViewState = {
 };
 
 export default function App() {
+	const [trips, setTrips] = useState<Trip[]>([]);
+
+	useEffect(() => {
+		async function fetchLiveData() {
+			const res = await fetch('https://api.tfl.gov.uk/Line/victoria/Arrivals');
+			const liveArrivals: TFLArrival[] = await res.json();
+
+			const tubeStationData: TubeStationData = await fetch(
+				'https://raw.githubusercontent.com/oobrien/vis/master/tubecreature/data/tfl_stations.json'
+			).then((response) => response.json());
+
+			const trips = createTripsFromLiveData(liveArrivals, tubeStationData);
+
+			const stationLookup = await buildStationLookup();
+			console.log(`Station lookup built:`, stationLookup);
+
+			setTrips(trips);
+		}
+
+		fetchLiveData();
+		const interval = setInterval(fetchLiveData, 15000); // update every 15s
+
+		return () => clearInterval(interval);
+	}, []);
+
 	return (
 		<div
 			style={{ width: '100vw', height: '100vh', margin: 0, padding: 0, overflow: 'hidden', border: '2px solid orange' }}
 		>
-			<TubeMap theme={DEFAULT_THEME} trips={DATA_URL.TRIPS} trailLength={180} initialViewState={INITIAL_VIEW_STATE} />
+			<TubeMap theme={DEFAULT_THEME} trips={trips} trailLength={180} initialViewState={INITIAL_VIEW_STATE} />
 		</div>
 	);
 }

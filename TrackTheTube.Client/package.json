@@ -14,6 +14,7 @@
     "@mantine/hooks": "^8.1.0",
     "@mantine/notifications": "^8.1.0",
     "deck.gl": "^9.1.12",
+    "fuse.js": "^7.1.0",
     "maplibre-gl": "^5.6.0",
     "popmotion": "^11.0.5",
     "react": "^19.1.0",
