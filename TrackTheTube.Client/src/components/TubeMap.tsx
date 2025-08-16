@@ -10,9 +10,12 @@ import type { Trip } from '../types/Trip';
 import type { MapTheme } from '../types/MapTheme';
 import type { Feature, Geometry } from 'geojson';
 import type { TubeLineData, TubeStationData } from '../types/Tube';
+import LiveTubeTrains from './MapLayers/LiveTubeTrains';
+import type { TubePosition } from '../utilities/tubePositionCalculator';
 
 export default function TubeMap({
 	trips,
+	tubePositions = [],
 	trailLength = 180,
 	initialViewState,
 	mapStyle = 'https://basemaps.cartocdn.com/gl/dark-matter-nolabels-gl-style/style.json',
@@ -21,11 +24,13 @@ export default function TubeMap({
 	animationSpeed = 10,
 	tubeLineData,
 	showTubeLines = true,
-	tubeStationData, // Add new prop for station data
-	showTubeStations = true, // New prop to control visibility of stations
+	tubeStationData,
+	showTubeStations = true,
+	showLiveTrains = true,
 }: {
 	theme: MapTheme;
 	trips?: string | Trip[];
+	tubePositions?: TubePosition[];
 	trailLength?: number;
 	loopLength?: number;
 	animationSpeed?: number;
@@ -33,8 +38,9 @@ export default function TubeMap({
 	mapStyle?: string;
 	tubeLineData?: TubeLineData;
 	showTubeLines?: boolean;
-	tubeStationData?: TubeStationData; // Type for the new prop
-	showTubeStations?: boolean; // Type for the new prop
+	tubeStationData?: TubeStationData;
+	showTubeStations?: boolean;
+	showLiveTrains?: boolean;
 }) {
 	const [time, setTime] = useState(0);
 	const [tubeLines, setTubeLines] = useState<TubeLineData | null>(null);
@@ -158,7 +164,7 @@ export default function TubeMap({
 			  ]
 			: []),
 
-		// Tube stations layer (rendered above lines, but below trips)
+		// Tube stations layer (rendered above lines, but below trips and trains)
 		...(showTubeStations && tubeStations
 			? [
 					new GeoJsonLayer({
@@ -181,19 +187,30 @@ export default function TubeMap({
 			  ]
 			: []),
 
-		// Animated trips layer (rendered on top)
-		new TripsLayer<Trip>({
-			id: 'trips',
-			data: trips,
-			getPath: (d) => d.path,
-			getTimestamps: (d) => d.timestamps,
-			getColor: (d) => (d.vendor === 0 ? theme.trailColor0 : theme.trailColor1),
-			opacity: 0.3,
-			widthMinPixels: 2,
-			capRounded: true,
-			trailLength,
-			currentTime: time,
-		}),
+		// Animated trips layer (optional trail effect)
+		...(trips && trips.length > 0 ? [
+			new TripsLayer<Trip>({
+				id: 'trips',
+				data: trips,
+				getPath: (d) => d.path,
+				getTimestamps: (d) => d.timestamps,
+				getColor: (d) => (d.vendor === 0 ? theme.trailColor0 : theme.trailColor1),
+				opacity: 0.3,
+				widthMinPixels: 2,
+				capRounded: true,
+				trailLength,
+				currentTime: time,
+			})
+		] : []),
+
+		// Live tube trains layer (rendered on top of everything)
+		...(showLiveTrains && tubePositions.length > 0 ? [
+			LiveTubeTrains({
+				tubePositions,
+				radiusMinPixels: 6,
+				radiusMaxPixels: 12
+			})
+		] : []),
 	];
 
 	return (
@@ -210,13 +227,38 @@ export default function TubeMap({
 				height: '100vh',
 				overflow: 'hidden',
 			}}
-			getTooltip={({ object }) => {
-				if (!object || !object.properties) {
+			getTooltip={({ object, layer }) => {
+				if (!object) {
 					return null;
 				}
 
+				// Check if the object is a live tube train
+				if (layer?.id === 'live-tube-trains') {
+					const train = object as TubePosition;
+					const timeInMinutes = Math.round(train.timeToNext / 60);
+					const lineColor = getRgbColourStringForText(train.lineId);
+					
+					return {
+						html: `
+							<div style="background: rgba(0,0,0,0.9); padding: 10px; border-radius: 6px; color: white; min-width: 150px;">
+								<div style="color: ${lineColor}; font-weight: bold; margin-bottom: 4px;">
+									🚇 ${train.lineId.charAt(0).toUpperCase() + train.lineId.slice(1)} Line
+								</div>
+								<div style="margin-bottom: 2px;">Vehicle: ${train.vehicleId}</div>
+								<div style="margin-bottom: 2px;">Next: ${train.nextStation}</div>
+								<div style="margin-bottom: 2px;">Time: ${timeInMinutes}min</div>
+								<div style="font-size: 11px; color: #ccc;">${train.currentLocation}</div>
+							</div>
+						`,
+						style: {
+							fontSize: '12px',
+							fontFamily: 'Arial, sans-serif',
+						},
+					};
+				}
+
 				// Check if the object belongs to the 'tube-stations' layer and has station properties
-				if (object.properties.name && object.properties.lines && Array.isArray(object.properties.lines)) {
+				if (object.properties?.name && object.properties?.lines && Array.isArray(object.properties.lines)) {
 					const stationName = object.properties.name;
 					const stationLines = object.properties.lines;
 
@@ -242,7 +284,7 @@ export default function TubeMap({
 				}
 
 				// Check if the object belongs to the 'tube-lines-main' layer and has line properties
-				if (object.properties.lines && Array.isArray(object.properties.lines)) {
+				if (object.properties?.lines && Array.isArray(object.properties.lines)) {
 					const line = object.properties.lines[0]; // Assuming the first line object is sufficient
 					if (line && line.name) {
 						return {

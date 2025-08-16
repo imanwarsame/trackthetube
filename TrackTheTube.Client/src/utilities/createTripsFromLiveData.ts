@@ -1,71 +1,44 @@
 import type { Trip } from '../types/Trip';
 import type { Position } from '@deck.gl/core';
-import type { TubeStationData } from '../types/Tube';
-import Fuse from 'fuse.js';
-
-export interface TfLArrival {
-	naptanId: string;
-	stationName: string;
-	destinationNaptanId: string;
-	destinationName: string;
-	timeToStation: number; // in seconds
-	lineId: string;
-	vehicleId: string;
-}
-
-function normaliseStationName(name: string): string {
-  return name
-    .replace(/\s+Underground Station$/i, '')  // Remove trailing "Underground Station"
-    .replace(/[’']/g, "'")                    // Normalise apostrophes
-    .trim();
-}
+import type { TubeStationData, TubeLineData } from '../types/Tube';
+import type { TFLArrival } from '../types/TFLArrival';
+import { TubePositionCalculator } from './tubePositionCalculator';
 
 /**
  * Creates Trips from live TfL arrivals and static tube station data.
+ * Now uses realistic positioning based on currentLocation data.
  */
 export function createTripsFromLiveData(
-	liveData: TfLArrival[],
-	stationData: TubeStationData
+	liveData: TFLArrival[],
+	stationData: TubeStationData,
+	lineData?: TubeLineData
 ): Trip[] {
-	// Setup Fuse.js for fuzzy station name matching
-	const fuse = new Fuse(stationData.features, {
-		keys: ['properties.name'],
-		threshold: 0.3,
-	});
-
-	const tripsByVehicle = new Map<string, Trip>();
-
-	for (const arrival of liveData) {
-        const originName = normaliseStationName(arrival.stationName);
-        const destName = normaliseStationName(arrival.destinationName);
-
-		const originMatch = fuse.search(originName)[0];
-		const destMatch = fuse.search(destName)[0];
-
-        // console.log(`Processing arrival for vehicle ${arrival.vehicleId} at ${arrival.stationName} towards ${arrival.destinationName}`);
-        // console.log(`Origin match: ${originMatch ? originMatch.item.properties.name : 'not found'}`);
-        // console.log(`Destination match: ${destMatch ? destMatch.item.properties.name : 'not found'}`);     
-
-		if (!originMatch || !destMatch) continue;
-
-		const originCoord = originMatch.item.geometry.coordinates;
-		const destCoord = destMatch.item.geometry.coordinates;
-
-		// Rough time estimate, assuming arrival time is halfway
-		const now = 0;
-		const arrivalTime = arrival.timeToStation;
-
+	const calculator = new TubePositionCalculator(stationData, lineData);
+	const tubePositions = calculator.calculatePositions(liveData);
+	
+	const trips: Trip[] = [];
+	
+	for (const position of tubePositions) {
+		// Create a very short trip representing the current position
+		// The train appears as a moving dot at its calculated position
+		const currentPos = position.position;
+		
+		// Create a minimal movement for animation purposes
+		const offset = 0.0001;
+		const endPos: Position = [
+			currentPos[0] + offset,
+			currentPos[1] + offset
+		];
+		
 		const trip: Trip = {
-			vendor: 0,
-			path: [originCoord, destCoord] as Position[],
-			timestamps: [now, now + arrivalTime],
+			vendor: position.lineId === 'victoria' ? 0 : 1, // Different colors for different lines
+			path: [currentPos, endPos],
+			timestamps: [0, position.timeToNext], // Use actual time to next station
 		};
-
-		tripsByVehicle.set(arrival.vehicleId, trip);
+		
+		trips.push(trip);
 	}
-    
-    console.log(`Created ${tripsByVehicle.size} trips from live data.`);
-    
-
-	return Array.from(tripsByVehicle.values());
+	
+	console.log(`Created ${trips.length} realistic tube positions from live data.`);
+	return trips;
 }
