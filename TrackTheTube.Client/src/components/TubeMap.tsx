@@ -233,7 +233,7 @@ export default function TubeMap({
 				}
 
 				// Check if the object is a live tube train
-				if (layer?.id === 'live-tube-trains') {
+				if (layer?.id?.startsWith('live-tube-trains-')) {
 					const train = object as TubePosition;
 					const timeInMinutes = Math.round(train.timeToNext / 60);
 					const lineColor = getRgbColourStringForText(train.lineId);
